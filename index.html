@@ -1,15 +1,15 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ClearChat AI — Your AI workspace</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet"><link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png"><link rel="icon" type="image/png" sizes="48x48" href="assets/favicon-48.png"><link rel="apple-touch-icon" href="assets/apple-touch-icon.png"><link rel="stylesheet" href="styles.css"></head>
+<title>GloopNext — Your AI workspace</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet"><link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png"><link rel="icon" type="image/png" sizes="48x48" href="assets/favicon-48.png"><link rel="apple-touch-icon" href="assets/apple-touch-icon.png"><link rel="stylesheet" href="styles.css"><meta name="description" content="GloopNext — chat, create, code, learn and explore."></head>
 <body data-theme="dark">
 
   <div class="auth-gate" id="authGate">
     <div class="auth-card">
-      <a class="brand auth-brand" href="#"><img class="brand-logo" src="assets/clearchat-logo.png" alt=""><span>ClearChat</span></a>
+      <a class="brand auth-brand" href="#"><img class="brand-logo" src="assets/gloopnext-logo.png" alt=""><span>GloopNext</span></a>
       <div id="locationSetup" class="hidden">
         <div class="overline">PERSONALIZE YOUR TIME</div>
         <h2>Where do you live?</h2>
-        <p>Choose your country or region and time zone. ClearChat uses this to show your daily limit reset time correctly.</p>
+        <p>Choose your country or region and time zone. GloopNext uses this to show your daily limit reset time correctly.</p>
         <label for="countrySelect">Country or region</label>
         <select id="countrySelect"></select>
         <label for="timezoneSelect">Time zone</label>
@@ -27,9 +27,9 @@
       </div>
       <div id="authLocal" class="hidden">
         <button class="auth-back" data-auth-back>← Back</button>
-        <div class="overline">LOCAL DEVICE MODE</div><h2>Welcome to ClearChat.</h2>
+        <div class="overline">LOCAL DEVICE MODE</div><h2>Welcome to GloopNext.</h2>
         <p>This mode stays on this browser and device. It does not sync across devices.</p>
-        <button class="primary-btn full" id="startLocal">Continue to ClearChat →</button>
+        <button class="primary-btn full" id="startLocal">Continue to GloopNext →</button>
       </div>
       <div id="authEmail" class="hidden">
         <button class="auth-back" data-auth-back>← Back</button>
@@ -44,15 +44,15 @@
       </div>
       <div id="authVerified" class="hidden">
         <div class="screen-icon success">✓</div><div class="overline">EMAIL VERIFIED</div>
-        <h2>You're verified.</h2><p>Your email confirmation was successful. Your ClearChat workspace is ready.</p>
-        <button class="primary-btn full" id="continueVerified">Continue to ClearChat →</button>
+        <h2>You're verified.</h2><p>Your email confirmation was successful. Your GloopNext workspace is ready.</p>
+        <button class="primary-btn full" id="continueVerified">Continue to GloopNext →</button>
       </div>
     </div>
   </div>
 <div class="layout">
 <aside class="sidebar" id="sidebar">
 
-<a class="brand" href="#"><img class="brand-logo" src="assets/clearchat-logo.png" alt="">ClearChat</a>
+<a class="brand" href="#"><img class="brand-logo" src="assets/gloopnext-logo.png" alt="">GloopNext</a>
 <button class="newchat" id="newChat">＋ New chat</button>
 <button class="newchat temporary-chat-button" id="newTemporaryChat">◌ Temporary chat</button>
 <p class="label">WORKSPACE</p>
@@ -153,7 +153,7 @@
 </div>
 
 <div id="attachmentPreview" class="attachment-preview hidden"></div>
-<div class="composer-input-row"><button id="attachButton" class="attach-button" type="button" title="Add files" aria-label="Add files">＋</button><input id="filePicker" type="file" multiple hidden><textarea id="chatInput" placeholder="Message ClearChat..." rows="2"></textarea></div>
+<div class="composer-input-row"><button id="attachButton" class="attach-button" type="button" title="Add files" aria-label="Add files">＋</button><input id="filePicker" type="file" multiple hidden><textarea id="chatInput" placeholder="Message GloopNext..." rows="2"></textarea></div>
 <div class="composebottom">
 <div>
 <button id="mic">🎙 Voice</button>
@@ -168,12 +168,12 @@
 <option value="fr-FR">Français</option>
 <option value="ar-SA">العربية</option>
 </select>
-<small id="status">Describe anything — ClearChat detects the tool automatically</small>
+<small id="status">Describe anything — GloopNext detects the tool automatically</small>
 </div>
 <button id="send" class="send">↑</button>
 </div>
 </div>
-<p class="fine">ClearChat can make mistakes. Check important information.</p>
+<p class="fine">GloopNext can make mistakes. Check important information.</p>
 <div id="freeLimitNotice" class="free-limit-notice hidden" role="status" aria-live="polite"></div>
 </div>
 </section>
@@ -281,7 +281,7 @@
 <p>Describe a browser task and review its proposed steps.</p>
 </div>
 <div class="card">
-<div class="notice">◎ <span><b>You stay in control.</b> ClearChat previews actions and asks approval. Never use automation with passwords, payments, or private data.</span></div>
+<div class="notice">◎ <span><b>You stay in control.</b> GloopNext previews actions and asks approval. Never use automation with passwords, payments, or private data.</span></div>
 <label>What would you like help doing?</label>
 <textarea id="browserPrompt" placeholder="Help me find the settings button on this page..."></textarea>
 <button id="planBrowser" class="wide">⌖ Create action plan · 1 prompt</button>
@@ -292,7 +292,7 @@
 
 <section id="plansView" class="view hidden">
 <div class="heading center">
-<small>CLEARCHAT MEMBERSHIPS</small>
+<small>GLOOPNEXT MEMBERSHIPS</small>
 <h1>Choose your <em>plan</em></h1>
 <p>Start free, upgrade when you need more.</p>
 </div>

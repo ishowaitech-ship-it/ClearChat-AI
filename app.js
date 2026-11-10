@@ -327,7 +327,7 @@ document.querySelectorAll("[data-tool]").forEach(b => b.onclick = () => switchTo
 $("mobile").onclick = () => $("sidebar").classList.toggle("open");
 document.querySelectorAll("[data-prompt]").forEach(b => b.onclick = () => { $("chatInput").value = b.dataset.prompt; $("chatInput").focus(); });
 async function api(path, body, signal) {
-  if (!API_BASE) throw new Error("AI backend is not connected yet. Set API_BASE_URL in config.js.");
+  if (!API_BASE) throw new Error("GloopNext backend is not connected. Check config.js and the backend URL.");
   const response = await fetch(`${API_BASE}/api/${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || data.message || `Request failed (${response.status})`);
@@ -481,7 +481,7 @@ function closeVoiceMode() {
   $("voiceBar").classList.add("hidden");
   $("chatInput").focus();
 }
-// Voice input is speech-to-text only. ClearChat does not read replies aloud.
+// Voice input is speech-to-text only. GloopNext does not read replies aloud.
 function speakReply() {}
 
 // Attachments are kept in the current browser's local chat history.
@@ -619,7 +619,7 @@ async function sendChatMessage() {
   const attached = pendingAttachments.slice(); pendingAttachments = []; renderPendingAttachments();
   $("chatInput").value = "";
   addMessage(prompt, "user", attached);
-  if (!prompt && attached.length) { addMessage("Your files are attached to this conversation. File reading and image understanding need to be connected to the AI backend before ClearChat can analyse them.", "assistant"); return; }
+  if (!prompt && attached.length) { addMessage("Your files are attached to this conversation. File reading and image understanding need to be connected to the AI backend before GloopNext can analyse them.", "assistant"); return; }
   const kind = detectChatTool(prompt);
   const names = {chat:"AI Chat",image:"Image Studio",video:"Video Studio",code:"Code Studio",music:"Music Studio",browser:"Browser Assistant"};
   $("status").textContent = kind === "chat" ? "Thinking…" : "Using " + names[kind] + "…";
@@ -632,13 +632,13 @@ async function sendChatMessage() {
     const providerUnavailable = /not connected|not implemented|501|provider/i.test(err.message || "");
     const message = providerUnavailable
       ? `${names[kind]} is not connected to a generation provider yet. Your request was not charged a credit. You can still use normal AI chat and any backend tools that are connected.`
-      : `ClearChat couldn't complete that request: ${err.message}. No credit was charged.`;
+      : `GloopNext couldn't complete that request: ${err.message}. No credit was charged.`;
     addMessage(message, "assistant");
   } finally {
     if (activeChatController === controller) activeChatController = null;
-    $("status").textContent = "Describe anything — ClearChat detects the tool automatically";
+    $("status").textContent = "Describe anything — GloopNext detects the tool automatically";
     if (!voiceIsSpeaking) setSendState("done");
-    updateVoiceControls(voiceIsSpeaking ? "ClearChat is speaking…" : "Finished");
+    updateVoiceControls(voiceIsSpeaking ? "GloopNext is speaking…" : "Finished");
   }
 }
 $("send").onclick = () => {
