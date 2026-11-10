@@ -303,6 +303,7 @@ function appendMessageElement(text, who, attachments = []) {
     div.appendChild(list);
   }
   $("messages").appendChild(div); div.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  return div;
 }
 function formatFileSize(bytes) { if (bytes < 1024) return bytes + " B"; if (bytes < 1048576) return (bytes/1024).toFixed(1)+" KB"; return (bytes/1048576).toFixed(1)+" MB"; }
 
@@ -312,6 +313,7 @@ function addMessage(text, who, attachments = []) {
   if (who === "user" && chat.title === "New chat") { const title = text || (attachments[0]?.name || "Attached files"); chat.title = title.slice(0, 36) + (title.length > 36 ? "…" : ""); }
   $("welcome").classList.add("hidden"); appendMessageElement(text, who, attachments);
   if (chat.temporary) renderHistory(); else saveChats();
+  return $("messages").lastElementChild;
 }
 $("newChat").onclick = () => { makeChat(false); $("chatInput").value = ""; switchTool("chat"); $("chatInput").focus(); };
 $("newTemporaryChat").onclick = () => { makeChat(true); $("chatInput").value = ""; switchTool("chat"); $("chatInput").focus(); };
@@ -327,13 +329,20 @@ document.querySelectorAll("[data-tool]").forEach(b => b.onclick = () => switchTo
 $("mobile").onclick = () => $("sidebar").classList.toggle("open");
 document.querySelectorAll("[data-prompt]").forEach(b => b.onclick = () => { $("chatInput").value = b.dataset.prompt; $("chatInput").focus(); });
 async function api(path, body, signal) {
-  if (!API_BASE) throw new Error("GloopNext backend is not connected. Check config.js and the backend URL.");
+  if (!API_BASE) throw new Error("AI backend is not connected yet. Set API_BASE_URL in config.js.");
   const response = await fetch(`${API_BASE}/api/${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || data.message || `Request failed (${response.status})`);
   return data;
 }
 let activeChatController = null;
+function stopCurrentResponse() {
+  if (activeChatController) {
+    activeChatController.abort();
+    $("status").textContent = "Stopping response…";
+  }
+  if (voiceIsSpeaking && typeof stopVoiceOutput === "function") stopVoiceOutput();
+}
 let voiceModeOpen = false;
 let voiceRecognition = null;
 let voiceTranscript = "";
@@ -481,7 +490,7 @@ function closeVoiceMode() {
   $("voiceBar").classList.add("hidden");
   $("chatInput").focus();
 }
-// Voice input is speech-to-text only. GloopNext does not read replies aloud.
+// Voice input is speech-to-text only. ClearChat does not read replies aloud.
 function speakReply() {}
 
 // Attachments are kept in the current browser's local chat history.
@@ -585,10 +594,94 @@ function appendToolCard(label, data, kind) {
   }
   host.appendChild(card); card.scrollIntoView({behavior:"smooth",block:"nearest"});
 }
+async function streamChatResponse(prompt, signal) {
+  if (!API_BASE) throw new Error("AI backend is not connected yet. Set API_BASE_URL in config.js.");
+
+  const chat = currentChat() || makeChat();
+  const savedMessage = { text: "", who: "assistant", attachments: [], at: Date.now() };
+  chat.messages.push(savedMessage);
+  chat.updatedAt = Date.now();
+  const messageElement = appendMessageElement("", "assistant");
+  const body = document.createElement("div");
+  body.className = "message-text";
+  body.setAttribute("aria-live", "polite");
+  messageElement.appendChild(body);
+
+  const cursor = document.createElement("span");
+  cursor.className = "stream-cursor";
+  cursor.textContent = "▍";
+  cursor.style.cssText = "display:inline-block;margin-left:2px;opacity:1;animation:gloopCursorBlink 1s steps(2,start) infinite;color:currentColor";
+  body.appendChild(cursor);
+  if (!document.getElementById("gloop-stream-style")) {
+    const style = document.createElement("style");
+    style.id = "gloop-stream-style";
+    style.textContent = "@keyframes gloopCursorBlink{to{opacity:0}} .message-text{white-space:pre-wrap;overflow-wrap:anywhere}";
+    document.head.appendChild(style);
+  }
+
+  let fullText = "";
+  let gotDone = false;
+  try {
+    const response = await fetch(`${API_BASE}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
+      body: JSON.stringify({ message: prompt, language: $("voiceLang").value }),
+      signal
+    });
+    if (!response.ok) {
+      const problem = await response.json().catch(() => ({}));
+      throw new Error(problem.error || `Request failed (${response.status})`);
+    }
+    if (!response.body) throw new Error("This browser does not support response streaming.");
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const frames = buffer.replace(/\r\n/g, "\n").split("\n\n");
+      buffer = frames.pop() || "";
+      for (const frame of frames) {
+        const line = frame.split("\n").find(row => row.startsWith("data: "));
+        if (!line) continue;
+        let event;
+        try { event = JSON.parse(line.slice(6)); } catch { continue; }
+        if (event.type === "delta" && event.text) {
+          fullText += event.text;
+          savedMessage.text = fullText;
+          body.textContent = fullText;
+          body.appendChild(cursor);
+          $("status").textContent = "Generating response…";
+          messageElement.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        } else if (event.type === "error") {
+          throw new Error(event.error || "The AI response failed.");
+        } else if (event.type === "done") {
+          gotDone = true;
+        }
+      }
+    }
+    if (!fullText && !gotDone) throw new Error("The connection ended before a response arrived.");
+    if (!fullText) savedMessage.text = "No reply returned.";
+  } catch (error) {
+    if (error.name !== "AbortError") throw error;
+  } finally {
+    cursor.remove();
+    if (signal.aborted && !fullText) {
+      savedMessage.text = "Response stopped.";
+      body.textContent = savedMessage.text;
+    } else {
+      savedMessage.text = fullText || savedMessage.text;
+    }
+    chat.updatedAt = Date.now();
+    if (chat.temporary) renderHistory(); else saveChats();
+  }
+}
+
 async function runChatTool(kind, prompt) {
   if (kind === "chat") {
-    const data = await api("chat", { message: prompt, language: $("voiceLang").value }, activeChatController?.signal);
-    addMessage(data.reply || "No reply returned.", "assistant");
+    await streamChatResponse(prompt, activeChatController?.signal);
     return;
   }
   if (!canUseFeature(kind)) { addMessage("You've reached your " + currentPlan + " plan limit for " + kind + ". Check the usage panel in the sidebar.", "assistant"); return; }
@@ -619,7 +712,7 @@ async function sendChatMessage() {
   const attached = pendingAttachments.slice(); pendingAttachments = []; renderPendingAttachments();
   $("chatInput").value = "";
   addMessage(prompt, "user", attached);
-  if (!prompt && attached.length) { addMessage("Your files are attached to this conversation. File reading and image understanding need to be connected to the AI backend before GloopNext can analyse them.", "assistant"); return; }
+  if (!prompt && attached.length) { addMessage("Your files are attached to this conversation. File reading and image understanding need to be connected to the AI backend before ClearChat can analyse them.", "assistant"); return; }
   const kind = detectChatTool(prompt);
   const names = {chat:"AI Chat",image:"Image Studio",video:"Video Studio",code:"Code Studio",music:"Music Studio",browser:"Browser Assistant"};
   $("status").textContent = kind === "chat" ? "Thinking…" : "Using " + names[kind] + "…";
@@ -629,16 +722,17 @@ async function sendChatMessage() {
   try {
     await runChatTool(kind, prompt);
   } catch (err) {
+    if (err.name === "AbortError") return;
     const providerUnavailable = /not connected|not implemented|501|provider/i.test(err.message || "");
     const message = providerUnavailable
       ? `${names[kind]} is not connected to a generation provider yet. Your request was not charged a credit. You can still use normal AI chat and any backend tools that are connected.`
-      : `GloopNext couldn't complete that request: ${err.message}. No credit was charged.`;
+      : `ClearChat couldn't complete that request: ${err.message}. No credit was charged.`;
     addMessage(message, "assistant");
   } finally {
     if (activeChatController === controller) activeChatController = null;
-    $("status").textContent = "Describe anything — GloopNext detects the tool automatically";
+    $("status").textContent = "Describe anything — ClearChat detects the tool automatically";
     if (!voiceIsSpeaking) setSendState("done");
-    updateVoiceControls(voiceIsSpeaking ? "GloopNext is speaking…" : "Finished");
+    updateVoiceControls(voiceIsSpeaking ? "ClearChat is speaking…" : "Finished");
   }
 }
 $("send").onclick = () => {
