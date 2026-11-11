@@ -241,7 +241,3 @@ button:disabled { cursor: not-allowed; opacity: .65; }
 .chat-usage-strip .chat-usage-title span{font-size:8px;letter-spacing:.1em}
 .chat-usage-strip strong{color:var(--text);font-weight:700;margin-left:3px}
 @media(max-width:600px){.chat-usage-strip{gap:7px;padding:8px;font-size:8px}.chat-usage-strip .chat-usage-title{width:100%;border-right:0;padding-right:0}}
-
-/* GloopNext identity */
-.brand-logo{width:34px;height:34px;object-fit:contain;flex:0 0 auto}
-.auth-brand .brand-logo{width:42px;height:42px}
