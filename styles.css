@@ -332,3 +332,74 @@ main {
     max-width: calc(100vw - 48px);
   }
 }
+/* GloopNext sidebar profile + scroll correction
+   Paste at the VERY END of styles.css. This overrides the previous sidebar patch. */
+
+.sidebar,
+.sidebar * {
+  box-sizing: border-box;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 250px;
+  flex: 0 0 250px;
+  height: 100vh;
+  max-height: 100vh;
+  min-height: 0;
+  padding: 18px 14px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.sidebar .chat-history {
+  display: grid;
+  flex: 0 1 auto;
+  min-height: 64px;
+  max-height: 22vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  margin-bottom: 8px;
+  padding-right: 3px;
+  overscroll-behavior: contain;
+}
+
+.sidebar .grow {
+  flex: 1 0 8px;
+  min-height: 8px;
+}
+
+.sidebar .usage {
+  flex: 0 0 auto;
+  min-width: 0;
+  margin: 8px 0;
+}
+
+.sidebar .profile {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-width: 0;
+  min-height: 64px;
+  padding: 14px 4px 8px;
+  margin-top: 8px;
+  overflow: visible;
+}
+
+.sidebar .profile > * {
+  min-width: 0;
+}
+
+.sidebar .profile small {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .sidebar {
+    width: min(280px, 86vw);
+    flex-basis: min(280px, 86vw);
+  }
+}
