@@ -536,15 +536,16 @@ async function checkUser() {
   if (!supabaseClient) return;
 
   try {
-    const { data, error } = await supabaseClient.auth.getUser();
+    const { data, error } = await supabaseClient.auth.getSession();
 
     if (error) throw error;
-    currentUser = data.user || null;
+
+    currentUser = data.session?.user || null;
   } catch (error) {
     console.error("User check failed:", error);
   }
 }
-
+  
 async function signInWithEmail(email) {
   if (!supabaseClient) {
     alert("Email sign-in is not configured yet.");
