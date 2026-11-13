@@ -241,3 +241,94 @@ button:disabled { cursor: not-allowed; opacity: .65; }
 .chat-usage-strip .chat-usage-title span{font-size:8px;letter-spacing:.1em}
 .chat-usage-strip strong{color:var(--text);font-weight:700;margin-left:3px}
 @media(max-width:600px){.chat-usage-strip{gap:7px;padding:8px;font-size:8px}.chat-usage-strip .chat-usage-title{width:100%;border-right:0;padding-right:0}}
+/* GloopNext sidebar layout fix — append at the end of styles.css */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  max-height: 100dvh;
+  overflow: hidden;
+  flex: 0 0 225px;
+  width: 225px;
+  box-sizing: border-box;
+}
+
+.sidebar > .brand,
+.sidebar > .newchat,
+.sidebar > .label,
+.sidebar > .workspace-nav,
+.sidebar > .project-heading,
+.sidebar > .project-list,
+.sidebar > #settingsOpen,
+.sidebar > #ownerOpen,
+.sidebar > #cancelAdminAccess,
+.sidebar > .profile,
+.sidebar > #signOutButton {
+  flex-shrink: 0;
+}
+
+.sidebar .chat-history {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 72px;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-right: 3px;
+  margin-bottom: 4px;
+}
+
+.sidebar .chat-history::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar .chat-history::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 8px;
+}
+
+.sidebar .grow {
+  flex: 0 0 8px;
+  min-height: 8px;
+}
+
+.sidebar .usage {
+  flex: 0 0 auto;
+  min-width: 0;
+  margin: 8px 0 0;
+}
+
+.sidebar .profile {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.sidebar .history-row,
+.sidebar .history-open {
+  min-width: 0;
+}
+
+.layout {
+  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
+  align-items: stretch;
+}
+
+main {
+  min-width: 0;
+  min-height: 0;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+@media (max-width: 700px) {
+  .sidebar {
+    width: 250px;
+    flex-basis: 250px;
+    max-width: calc(100vw - 48px);
+  }
+}
