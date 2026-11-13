@@ -573,6 +573,40 @@ async function signOut() {
 }
 
 function initializeEventListeners() {
+    // Welcome screen navigation
+  function showAuthScreen(screenId) {
+    ["authWelcome", "authLocal", "authEmail", "authVerified"].forEach(id => {
+      $(id)?.classList.toggle("hidden", id !== screenId);
+    });
+  }
+
+  $("localChoice")?.addEventListener("click", () => {
+    showAuthScreen("authLocal");
+  });
+
+  $("emailChoice")?.addEventListener("click", () => {
+    showAuthScreen("authEmail");
+  });
+
+  document.querySelectorAll("[data-auth-back]").forEach(button => {
+    button.addEventListener("click", () => showAuthScreen("authWelcome"));
+  });
+
+  $("startLocal")?.addEventListener("click", () => {
+    localStorage.setItem("gloopnext_access_mode", "local");
+    $("authGate")?.classList.add("hidden");
+  });
+
+  $("emailForm")?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const email = $("email")?.value.trim();
+    if (email) await signInWithEmail(email);
+  });
+
+  $("continueVerified")?.addEventListener("click", () => {
+    localStorage.setItem("gloopnext_access_mode", "email");
+    $("authGate")?.classList.add("hidden");
+  });
   $("sendButton")?.addEventListener("click", sendMessage);
 
   $("messageInput")?.addEventListener("keydown", event => {
