@@ -36,7 +36,7 @@ let currentPlan = "free";
 let usage = {};
 let projects = [];
 let currentUser = null;
-let supabase = null;
+let supabaseClient = null;
 let isGenerating = false;
 
 function loadStorage() {
@@ -519,24 +519,24 @@ function hideOwnerAccess() {
   if (panel) panel.hidden = true;
 }
 
-function initializeSupabase() {
+function initializeSupabaseClient() {
   if (!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_PUBLISHABLE_KEY) {
     return;
   }
 
   if (!window.supabase?.createClient) return;
 
-  supabase = window.supabase.createClient(
+  supabaseClient = window.supabase.createClient(
     CONFIG.SUPABASE_URL,
     CONFIG.SUPABASE_PUBLISHABLE_KEY
   );
 }
 
 async function checkUser() {
-  if (!supabase) return;
+  if (!supabaseClient) return;
 
   try {
-    const { data, error } = await supabase.auth.getUser();
+    const { data, error } = await supabaseClient.auth.getUser();
 
     if (error) throw error;
     currentUser = data.user || null;
@@ -546,12 +546,12 @@ async function checkUser() {
 }
 
 async function signInWithEmail(email) {
-  if (!supabase) {
+  if (!supabaseClient) {
     alert("Email sign-in is not configured yet.");
     return;
   }
 
-  const { error } = await supabase.auth.signInWithOtp({
+  const { error } = await supabaseClient.auth.signInWithOtp({
     email,
     options: {
       emailRedirectTo: window.location.origin
@@ -566,7 +566,7 @@ async function signInWithEmail(email) {
 }
 
 async function signOut() {
-  if (supabase) await supabase.auth.signOut();
+  if (supabaseClient) await supabaseClient.auth.signOut();
   currentUser = null;
   location.reload();
 }
@@ -628,7 +628,7 @@ function initializeEventListeners() {
 
 function initializeApp() {
   loadStorage();
-  initializeSupabase();
+  initializeSupabaseClient();
 
   if (!activeChatId || !chats.some(chat => chat.id === activeChatId)) {
     if (chats.length) {
