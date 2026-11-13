@@ -312,19 +312,93 @@ function setGenerating(value) {
 }
 
 async function streamLocalChat(prompt) {
-  const data = await api("chat", {
-    message: prompt
-  }, activeChatController?.signal);
-
-  const reply = typeof data.reply === "string"
-    ? data.reply.trim()
-    : "";
-
-  if (!reply) {
-    throw new Error("The AI returned an empty response.");
+  if (!API_BASE) {
+    throw new Error("Cloud backend is not configured. Check config.js.");
   }
 
-  addMessage(reply, "assistant");
+  const chat = currentChat() || makeChat();
+
+  const message = {
+    text: "Thinking…",
+    who: "assistant",
+    attachments: [],
+    at: Date.now()
+  };
+
+  chat.messages.push(message);
+  chat.updatedAt = Date.now();
+
+  $("welcome")?.classList.add("hidden");
+
+  const bubble = appendMessageElement("Thinking…", "assistant");
+  bubble.classList.add("streaming-message");
+
+  const body = bubble.firstElementChild;
+
+  if (body) body.classList.add("streaming-text");
+
+  try {
+    const response = await fetch(`${API_BASE}/api/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        message: prompt,
+        language: $("voiceLang")?.value || "English"
+      }),
+      signal: activeChatController?.signal
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        data.error || data.message ||
+        `Cloud backend returned ${response.status}`
+      );
+    }
+
+    const reply =
+      typeof data.reply === "string" ? data.reply.trim() :
+      typeof data.message === "string" ? data.message.trim() :
+      "";
+
+    if (!reply) {
+      throw new Error(
+        data.error || "The AI returned an empty response."
+      );
+    }
+
+    message.text = reply;
+    message.at = Date.now();
+    chat.updatedAt = Date.now();
+
+    if (body) body.textContent = reply;
+
+    saveChats();
+
+  } catch (error) {
+    if (error.name === "AbortError") {
+      message.text = "Response stopped.";
+    } else {
+      message.text =
+        "GloopNext couldn't complete that request: " +
+        (error.message || "Unknown AI error.");
+
+      toast("Cloud AI request failed. Check the Worker.");
+    }
+
+    chat.updatedAt = Date.now();
+
+    if (body) body.textContent = message.text;
+
+    saveChats();
+
+  } finally {
+    bubble.classList.remove("streaming-message");
+    body?.classList.remove("streaming-text");
+  }
 }
 
 async function runChatTool(kind, prompt) {
