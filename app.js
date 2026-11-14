@@ -38,6 +38,8 @@ let projects = [];
 let currentUser = null;
 let supabaseClient = null;
 let isGenerating = false;
+let pendingFiles = [];
+let displayName = localStorage.getItem("gloopnext_display_name") || "";
 
 function loadStorage() {
   try {
@@ -210,7 +212,7 @@ function renderChatHistory() {
   const container = $("chatHistory");
   if (!container) return;
 
-  const ordered = [...chats].sort((a, b) =>
+  const ordered = chats.filter(chat => !chat.temporary).sort((a, b) =>
     Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) ||
     b.createdAt - a.createdAt
   );
@@ -332,7 +334,7 @@ function setGenerating(value) {
 }
 
 
-async function streamLocalChat(prompt) {
+async function streamLocalChat(prompt, attachments = []) {
   if (!API_BASE) {
     throw new Error("Cloud backend is not configured. Check config.js.");
   }
@@ -359,7 +361,8 @@ try {
       },
       body: JSON.stringify({
         message: prompt,
-        language: $("voiceLang")?.value || "en-US"
+        language: $("voiceLang")?.value || "en-US",
+        attachments
       }),
       signal: activeChatController?.signal
     });
@@ -428,8 +431,9 @@ async function sendMessage() {
   if (!input || isGenerating) return;
 
   const prompt = input.value.trim();
+  const files = [...pendingFiles];
 
-  if (!prompt) return;
+  if (!prompt && files.length === 0) return;
 
   if (!getActiveChat()) {
     createChat();
@@ -439,14 +443,30 @@ async function sendMessage() {
 
   $("welcome")?.classList.add("hidden");
 
-  addMessage(prompt, "user");
+  const fileNames = files.map(file => file.name);
+  addMessage([prompt, ...fileNames.map(name => "📎 " + name)].filter(Boolean).join("\n"), "user");
 
   activeChatController = new AbortController();
 
   setGenerating(true);
 
   try {
-    await streamLocalChat(prompt);
+    const attachments = await Promise.all(files.map(async file => {
+      if (file.size > 10 * 1024 * 1024) throw new Error(file.name + " is larger than 10 MB.");
+      const data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+        reader.onerror = () => reject(new Error("Could not read " + file.name));
+        reader.readAsDataURL(file);
+      });
+      return { name: file.name, type: file.type || "application/octet-stream", size: file.size, data };
+    }));
+    await streamLocalChat(prompt, attachments);
+    pendingFiles = [];
+    const preview = $("attachmentPreview");
+    if (preview) { preview.innerHTML = ""; preview.classList.add("hidden"); }
+    const picker = $("filePicker");
+    if (picker) picker.value = "";
   } catch (error) {
     addMessage(
       "Something went wrong: " + error.message,
@@ -500,6 +520,7 @@ function deleteProject(id) {
 
 function changeTheme(theme) {
   document.documentElement.dataset.theme = theme;
+  document.body.dataset.theme = theme;
   localStorage.setItem(STORAGE_KEYS.theme, theme);
 }
 
@@ -672,23 +693,48 @@ function initializeEventListeners() {
     if (button) deleteProject(button.dataset.id);
   });
 
-  // Attachment button opens file picker
-  $("attachButton")?.addEventListener("click", () => {
-    $("filePicker")?.click();
-  });
+  // Attach files and keep them queued until the message is sent.
+  $("attachButton")?.addEventListener("click", () => $("filePicker")?.click());
 
-  // Show selected filenames
   $("filePicker")?.addEventListener("change", event => {
+    pendingFiles = [...pendingFiles, ...event.target.files];
     const preview = $("attachmentPreview");
     if (!preview) return;
-
-    preview.classList.remove("hidden");
-
-    preview.innerHTML = [...event.target.files].map(file => `
-      <div class="attachment-chip">
-        <span>${escapeHTML(file.name)}</span>
-      </div>
+    preview.classList.toggle("hidden", pendingFiles.length === 0);
+    preview.innerHTML = pendingFiles.map((file, index) => `
+      <div class="attachment-chip"><span>${escapeHTML(file.name)}</span>
+      <button type="button" data-remove-file="${index}" aria-label="Remove file">×</button></div>
     `).join("");
+    event.target.value = "";
+  });
+
+  $("attachmentPreview")?.addEventListener("click", event => {
+    const remove = event.target.closest("[data-remove-file]");
+    if (!remove) return;
+    pendingFiles.splice(Number(remove.dataset.removeFile), 1);
+    const preview = $("attachmentPreview");
+    preview.classList.toggle("hidden", pendingFiles.length === 0);
+    preview.innerHTML = pendingFiles.map((file, index) => `
+      <div class="attachment-chip"><span>${escapeHTML(file.name)}</span>
+      <button type="button" data-remove-file="${index}">×</button></div>
+    `).join("");
+  });
+
+  $("saveDisplayName")?.addEventListener("click", () => {
+    const value = $("displayNameInput")?.value.trim() || "";
+    if (!value) { alert("Please enter a display name."); return; }
+    displayName = value;
+    localStorage.setItem("gloopnext_display_name", displayName);
+    alert("Name saved on this device.");
+  });
+
+  $("saveSettings")?.addEventListener("click", () => {
+    const theme = $("themeSelect")?.value || "dark";
+    const language = $("uiLanguage")?.value || "English";
+    changeTheme(theme);
+    changeLanguage(language);
+    $("settingsModal")?.classList.add("hidden");
+    alert("Preferences saved on this device.");
   });
 
   // Mobile sidebar
@@ -704,9 +750,8 @@ function initializeEventListeners() {
   });
 
   // Theme and language
-  $("themeQuick")?.addEventListener("change", event => {
-    changeTheme(event.target.value);
-  });
+  $("themeQuick")?.addEventListener("change", event => changeTheme(event.target.value));
+  $("themeSelect")?.addEventListener("change", event => changeTheme(event.target.value));
 
   $("uiLanguage")?.addEventListener("change", event => {
     changeLanguage(event.target.value);
@@ -735,6 +780,8 @@ function initializeApp() {
 
   const savedTheme = localStorage.getItem(STORAGE_KEYS.theme) || "dark";
   changeTheme(savedTheme);
+  if ($("themeSelect")) $("themeSelect").value = savedTheme;
+  if ($("displayNameInput")) $("displayNameInput").value = displayName;
 
   const savedLanguage = localStorage.getItem(STORAGE_KEYS.language);
   if (savedLanguage && $("uiLanguage")) {
