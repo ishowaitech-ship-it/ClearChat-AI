@@ -183,11 +183,13 @@ function formatMessage(text) {
   return result;
 }
 
+
 function renderMessages() {
   const container = $("messages");
   if (!container) return;
 
   const chat = getActiveChat();
+
   if (!chat) {
     container.innerHTML = "";
     return;
@@ -202,6 +204,8 @@ function renderMessages() {
   container.scrollTop = container.scrollHeight;
 }
 
+
+
 function renderChatHistory() {
   const container = $("chatHistory");
   if (!container) return;
@@ -212,19 +216,28 @@ function renderChatHistory() {
   );
 
   container.innerHTML = ordered.map(chat => `
-    <div class="chat-history-item ${chat.id === activeChatId ? "active" : ""}"
-         data-chat-id="${escapeHTML(chat.id)}">
-      <button class="chat-title" data-action="select-chat"
-              data-id="${escapeHTML(chat.id)}">
+    <div class="history-row ${chat.id === activeChatId ? "selected" : ""}">
+      <button class="history-open"
+        data-action="select-chat"
+        data-id="${escapeHTML(chat.id)}">
         ${escapeHTML(chat.title)}
       </button>
-      <button data-action="pin-chat" data-id="${escapeHTML(chat.id)}"
-              title="Pin chat">${chat.pinned ? "★" : "☆"}</button>
-      <button data-action="chat-menu" data-id="${escapeHTML(chat.id)}"
-              title="Chat options">•••</button>
+
+      <button class="history-pin"
+        data-action="pin-chat"
+        data-id="${escapeHTML(chat.id)}">
+        ${chat.pinned ? "★" : "☆"}
+      </button>
+
+      <button class="history-more"
+        data-action="chat-menu"
+        data-id="${escapeHTML(chat.id)}">
+        •••
+      </button>
     </div>
   `).join("");
 }
+
 
 function renderPlan() {
   const planName = $("planName");
@@ -247,20 +260,25 @@ function renderPlan() {
   }
 }
 
+
 function renderProjects() {
-  const container = $("projectsList");
+  const container = $("projectList");
   if (!container) return;
 
-  container.innerHTML = projects.length
-    ? projects.map(project => `
-      <div class="project-item">
-        <span>${escapeHTML(project.name)}</span>
-        <button data-action="delete-project"
-                data-id="${escapeHTML(project.id)}">×</button>
-      </div>
-    `).join("")
-    : "<p>No projects</p>";
+  container.innerHTML = projects.map(project => `
+    <div class="project-row">
+      <button class="project-item">
+        ${escapeHTML(project.name)}
+      </button>
+      <button class="project-more"
+        data-action="delete-project"
+        data-id="${escapeHTML(project.id)}">
+        ×
+      </button>
+    </div>
+  `).join("");
 }
+
 
 function renderAll() {
   renderChatHistory();
@@ -303,6 +321,7 @@ function setGenerating(value) {
   isGenerating = value;
 
   const button = $("send");
+
   if (button) {
     button.disabled = value;
     button.textContent = value ? "…" : "➤";
@@ -312,19 +331,27 @@ function setGenerating(value) {
   if (stopButton) stopButton.hidden = !value;
 }
 
+
 async function streamLocalChat(prompt) {
   if (!API_BASE) {
     throw new Error("Cloud backend is not configured. Check config.js.");
   }
 
   const chat = getActiveChat();
-  if (!chat) return;
+
+  if (!chat) {
+    throw new Error("No active chat found.");
+  }
 
   addMessage("Thinking...", "assistant");
 
   const assistantMessage = chat.messages[chat.messages.length - 1];
 
-  try {
+  const container = $("messages");
+  const bubble = container?.lastElementChild;
+  const content = bubble?.querySelector(".message-content");
+  let displayed = "";
+try {
     const response = await fetch(`${API_BASE}/api/chat`, {
       method: "POST",
       headers: {
@@ -332,7 +359,7 @@ async function streamLocalChat(prompt) {
       },
       body: JSON.stringify({
         message: prompt,
-        language: $("languageSelect")?.value || "English"
+        language: $("voiceLang")?.value || "en-US"
       }),
       signal: activeChatController?.signal
     });
@@ -349,22 +376,50 @@ async function streamLocalChat(prompt) {
       throw new Error("The AI returned an empty response.");
     }
 
+    assistantMessage.content = "";
+
+    if (content) {
+      content.textContent = "";
+      content.classList.add("typing-cursor");
+    }
+
+   
+
+    for (let i = 0; i < reply.length; i += 3) {
+      if (activeChatController?.signal.aborted) {
+        throw new DOMException("Stopped", "AbortError");
+      }
+
+      displayed += reply.slice(i, i + 3);
+
+      if (content) {
+        content.textContent = displayed;
+      }
+
+      assistantMessage.content = displayed;
+
+      container.scrollTop = container.scrollHeight;
+
+      await new Promise(resolve => setTimeout(resolve, 12));
+    }
+
     assistantMessage.content = reply;
 
   } catch (error) {
     if (error.name === "AbortError") {
-      assistantMessage.content = "Response stopped.";
+      assistantMessage.content = displayed + "\n\nResponse stopped.";
     } else {
       assistantMessage.content =
         "GloopNext couldn't complete that request: " + error.message;
     }
   }
 
-  chat.messages[chat.messages.length - 1] = assistantMessage;
   saveChats();
   renderMessages();
   renderChatHistory();
 }
+
+
 
 
 async function sendMessage() {
@@ -373,25 +428,36 @@ async function sendMessage() {
   if (!input || isGenerating) return;
 
   const prompt = input.value.trim();
+
   if (!prompt) return;
 
-  if (!getActiveChat()) createChat();
+  if (!getActiveChat()) {
+    createChat();
+  }
 
   input.value = "";
+
+  $("welcome")?.classList.add("hidden");
+
   addMessage(prompt, "user");
 
   activeChatController = new AbortController();
+
   setGenerating(true);
 
   try {
     await streamLocalChat(prompt);
   } catch (error) {
-    addMessage("Something went wrong: " + error.message, "assistant");
+    addMessage(
+      "Something went wrong: " + error.message,
+      "assistant"
+    );
   } finally {
     activeChatController = null;
     setGenerating(false);
   }
 }
+
 
 
 
@@ -447,25 +513,25 @@ function upgradePlan(plan) {
   alert("Checkout is not connected yet. No payment or plan change has occurred.");
 }
 
+
 function openSettings() {
-  const settings = $("settingsModal");
-  if (settings) settings.hidden = false;
+  $("settingsModal")?.classList.remove("hidden");
 }
 
 function closeSettings() {
-  const settings = $("settingsModal");
-  if (settings) settings.hidden = true;
+  $("settingsModal")?.classList.add("hidden");
 }
 
+
+
 function showOwnerAccess() {
-  const panel = $("ownerPanel");
-  if (panel) panel.hidden = false;
+  $("ownerModal")?.classList.remove("hidden");
 }
 
 function hideOwnerAccess() {
-  const panel = $("ownerPanel");
-  if (panel) panel.hidden = true;
+  $("ownerModal")?.classList.add("hidden");
 }
+
 
 function initializeSupabaseClient() {
   if (!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_PUBLISHABLE_KEY) {
@@ -555,8 +621,10 @@ function initializeEventListeners() {
     localStorage.setItem("gloopnext_access_mode", "email");
     $("authGate")?.classList.add("hidden");
   });
+  
+  // Chat controls
   $("send")?.addEventListener("click", sendMessage);
-
+  $("stopButton")?.addEventListener("click", stopGeneration);
   $("chatInput")?.addEventListener("keydown", event => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
@@ -564,14 +632,19 @@ function initializeEventListeners() {
     }
   });
 
-  $("newChatButton")?.addEventListener("click", newChat);
-  $("temporaryChatButton")?.addEventListener("click", temporaryChat);
-  $("stopButton")?.addEventListener("click", stopGeneration);
-  $("addProjectButton")?.addEventListener("click", addProject);
-  $("settingsButton")?.addEventListener("click", openSettings);
-  $("closeSettingsButton")?.addEventListener("click", closeSettings);
-  $("ownerAccessButton")?.addEventListener("click", showOwnerAccess);
+  $("newChat")?.addEventListener("click", newChat);
 
+  $("newTemporaryChat")?.addEventListener("click", temporaryChat);
+
+  $("newProject")?.addEventListener("click", addProject);
+
+  $("settingsOpen")?.addEventListener("click", openSettings);
+
+  $("ownerOpen")?.addEventListener("click", showOwnerAccess);
+
+  $("signOutButton")?.addEventListener("click", signOut);
+
+  // Chat history actions
   $("chatHistory")?.addEventListener("click", event => {
     const button = event.target.closest("[data-action]");
     if (!button) return;
@@ -580,33 +653,72 @@ function initializeEventListeners() {
     const action = button.dataset.action;
 
     if (action === "select-chat") selectChat(id);
+
     if (action === "pin-chat") togglePin(id);
 
     if (action === "chat-menu") {
       const choice = prompt("Type rename or delete:");
-      if (choice === "rename") renameChat(id);
-      if (choice === "delete") deleteChat(id);
+
+      if (choice?.toLowerCase() === "rename") renameChat(id);
+
+      if (choice?.toLowerCase() === "delete") deleteChat(id);
     }
   });
 
-  $("projectsList")?.addEventListener("click", event => {
+  // Project actions
+  $("projectList")?.addEventListener("click", event => {
     const button = event.target.closest('[data-action="delete-project"]');
+
     if (button) deleteProject(button.dataset.id);
   });
 
-  $("themeSelect")?.addEventListener("change", event => {
+  // Attachment button opens file picker
+  $("attachButton")?.addEventListener("click", () => {
+    $("filePicker")?.click();
+  });
+
+  // Show selected filenames
+  $("filePicker")?.addEventListener("change", event => {
+    const preview = $("attachmentPreview");
+    if (!preview) return;
+
+    preview.classList.remove("hidden");
+
+    preview.innerHTML = [...event.target.files].map(file => `
+      <div class="attachment-chip">
+        <span>${escapeHTML(file.name)}</span>
+      </div>
+    `).join("");
+  });
+
+  // Mobile sidebar
+  $("mobile")?.addEventListener("click", () => {
+    $("sidebar")?.classList.toggle("open");
+  });
+
+  // Modal closing
+  document.querySelectorAll("[data-close]").forEach(button => {
+    button.addEventListener("click", () => {
+      $(button.dataset.close)?.classList.add("hidden");
+    });
+  });
+
+  // Theme and language
+  $("themeQuick")?.addEventListener("change", event => {
     changeTheme(event.target.value);
   });
 
-  $("languageSelect")?.addEventListener("change", event => {
+  $("uiLanguage")?.addEventListener("change", event => {
     changeLanguage(event.target.value);
   });
 
+  // Plan buttons
   document.querySelectorAll("[data-upgrade-plan]").forEach(button => {
     button.addEventListener("click", () => {
       upgradePlan(button.dataset.upgradePlan);
     });
   });
+
 }
 
 function initializeApp() {
@@ -625,9 +737,9 @@ function initializeApp() {
   changeTheme(savedTheme);
 
   const savedLanguage = localStorage.getItem(STORAGE_KEYS.language);
-  if (savedLanguage && $("languageSelect")) {
-    $("languageSelect").value = savedLanguage;
-  }
+  if (savedLanguage && $("uiLanguage")) {
+  $("uiLanguage").value = savedLanguage;
+}
 
   initializeEventListeners();
   renderAll();
