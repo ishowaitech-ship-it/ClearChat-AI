@@ -503,3 +503,27 @@ main {
     max-width: 94%;
   }
 }
+
+/* GloopNext fixes: tighter user bubbles and cleaner attachment chips */
+#messages .message.user {
+  width: fit-content !important;
+  max-width: min(68%, 560px) !important;
+  min-width: 0 !important;
+  margin-left: auto !important;
+  padding: 10px 14px !important;
+  border-radius: 18px 18px 5px 18px !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+}
+#messages .message.user .message-content {
+  width: auto !important;
+  max-width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  line-height: 1.45 !important;
+}
+#attachmentPreview { display:flex; flex-wrap:wrap; gap:8px; padding:8px 12px; }
+#attachmentPreview.hidden { display:none !important; }
+.attachment-chip { display:flex; align-items:center; gap:8px; max-width:100%; padding:7px 10px; border-radius:12px; background:#1b2940; border:1px solid #30425f; font-size:13px; }
+.attachment-chip span { overflow-wrap:anywhere; }
+.attachment-chip button { border:0; background:transparent; color:inherit; cursor:pointer; font-size:17px; }
