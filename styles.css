@@ -403,3 +403,103 @@ main {
     flex-basis: min(280px, 86vw);
   }
 }
+
+/* GloopNext layout and chat polish */
+@media (min-width: 761px) {
+  .view {
+    padding-left: 36px;
+    padding-right: 36px;
+  }
+
+  #chatView .chat {
+    max-width: 1450px;
+    width: 100%;
+  }
+
+  .chat-tool-hint,
+  .chat-usage-strip {
+    width: 100%;
+    max-width: 1450px;
+  }
+}
+
+/* Make assistant messages lighter and less bulky */
+#messages .message {
+  max-width: min(88%, 900px);
+  padding: 10px 14px;
+  border-radius: 12px;
+  line-height: 1.6;
+}
+
+#messages .message.assistant {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  padding-left: 4px;
+}
+
+#messages .message.user {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+}
+
+/* Better scrolling */
+#messages,
+.sidebar,
+.chat-history {
+  scrollbar-width: thin;
+  scrollbar-color: #52617d transparent;
+}
+
+#messages::-webkit-scrollbar,
+.sidebar::-webkit-scrollbar,
+.chat-history::-webkit-scrollbar {
+  width: 8px;
+}
+
+#messages::-webkit-scrollbar-track,
+.sidebar::-webkit-scrollbar-track,
+.chat-history::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#messages::-webkit-scrollbar-thumb,
+.sidebar::-webkit-scrollbar-thumb,
+.chat-history::-webkit-scrollbar-thumb {
+  background: #52617d;
+  border-radius: 20px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+#messages::-webkit-scrollbar-thumb:hover,
+.sidebar::-webkit-scrollbar-thumb:hover,
+.chat-history::-webkit-scrollbar-thumb:hover {
+  background: #8292b2;
+  background-clip: padding-box;
+}
+
+/* Keep chat content from overflowing */
+#messages {
+  min-width: 0;
+  padding: 16px 4px;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+}
+
+/* Make sidebar buttons consistently clickable */
+.sidebar button {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+@media (max-width: 760px) {
+  #chatView .chat {
+    width: 100%;
+  }
+
+  #messages .message {
+    max-width: 94%;
+  }
+}
