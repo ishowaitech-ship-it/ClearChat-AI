@@ -298,6 +298,7 @@ async function api(endpoint, body = {}, signal) {
   return data;
 }
 
+
 function setGenerating(value) {
   isGenerating = value;
 
@@ -316,26 +317,12 @@ async function streamLocalChat(prompt) {
     throw new Error("Cloud backend is not configured. Check config.js.");
   }
 
-  const chat = currentChat() || makeChat();
+  const chat = getActiveChat();
+  if (!chat) return;
 
-  const message = {
-    text: "Thinking…",
-    who: "assistant",
-    attachments: [],
-    at: Date.now()
-  };
+  addMessage("Thinking...", "assistant");
 
-  chat.messages.push(message);
-  chat.updatedAt = Date.now();
-
-  $("welcome")?.classList.add("hidden");
-
-  const bubble = appendMessageElement("Thinking…", "assistant");
-  bubble.classList.add("streaming-message");
-
-  const body = bubble.firstElementChild;
-
-  if (body) body.classList.add("streaming-text");
+  const assistantMessage = chat.messages[chat.messages.length - 1];
 
   try {
     const response = await fetch(`${API_BASE}/api/chat`, {
@@ -345,83 +332,43 @@ async function streamLocalChat(prompt) {
       },
       body: JSON.stringify({
         message: prompt,
-        language: $("voiceLang")?.value || "English"
+        language: $("languageSelect")?.value || "English"
       }),
       signal: activeChatController?.signal
     });
 
-    const data = await response.json().catch(() => ({}));
+    const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(
-        data.error || data.message ||
-        `Cloud backend returned ${response.status}`
-      );
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.error || "The AI request failed.");
     }
 
-    const reply =
-      typeof data.reply === "string" ? data.reply.trim() :
-      typeof data.message === "string" ? data.message.trim() :
-      "";
+    const reply = data.reply || data.message || "";
 
-    if (!reply) {
-      throw new Error(
-        data.error || "The AI returned an empty response."
-      );
+    if (!reply.trim()) {
+      throw new Error("The AI returned an empty response.");
     }
 
-    message.text = reply;
-    message.at = Date.now();
-    chat.updatedAt = Date.now();
-
-    if (body) body.textContent = reply;
-
-    saveChats();
+    assistantMessage.content = reply;
 
   } catch (error) {
     if (error.name === "AbortError") {
-      message.text = "Response stopped.";
+      assistantMessage.content = "Response stopped.";
     } else {
-      message.text =
-        "GloopNext couldn't complete that request: " +
-        (error.message || "Unknown AI error.");
-
-      toast("Cloud AI request failed. Check the Worker.");
+      assistantMessage.content =
+        "GloopNext couldn't complete that request: " + error.message;
     }
-
-    chat.updatedAt = Date.now();
-
-    if (body) body.textContent = message.text;
-
-    saveChats();
-
-  } finally {
-    bubble.classList.remove("streaming-message");
-    body?.classList.remove("streaming-text");
-  }
-}
-
-async function runChatTool(kind, prompt) {
-  const data = await api(kind, {
-    message: prompt
-  }, activeChatController?.signal);
-
-  const reply =
-    data.reply ||
-    data.code ||
-    data.output ||
-    data.message ||
-    "";
-
-  if (typeof reply !== "string" || !reply.trim()) {
-    throw new Error("The AI returned an empty response.");
   }
 
-  addMessage(reply, "assistant");
+  chat.messages[chat.messages.length - 1] = assistantMessage;
+  saveChats();
+  renderMessages();
+  renderChatHistory();
 }
 
 async function sendMessage() {
   const input = $("messageInput");
+
   if (!input || isGenerating) return;
 
   const prompt = input.value.trim();
@@ -438,14 +385,13 @@ async function sendMessage() {
   try {
     await streamLocalChat(prompt);
   } catch (error) {
-    if (error.name !== "AbortError") {
-      addMessage(`GloopNext couldn't complete that request: ${error.message}`, "assistant");
-    }
+    addMessage("Something went wrong: " + error.message, "assistant");
   } finally {
     activeChatController = null;
     setGenerating(false);
   }
 }
+
 
 function stopGeneration() {
   if (activeChatController) {
