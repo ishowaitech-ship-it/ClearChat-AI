@@ -302,7 +302,7 @@ async function api(endpoint, body = {}, signal) {
 function setGenerating(value) {
   isGenerating = value;
 
-  const button = $("sendButton");
+  const button = $("send");
   if (button) {
     button.disabled = value;
     button.textContent = value ? "…" : "➤";
@@ -366,8 +366,9 @@ async function streamLocalChat(prompt) {
   renderChatHistory();
 }
 
+
 async function sendMessage() {
-  const input = $("messageInput");
+  const input = $("chatInput");
 
   if (!input || isGenerating) return;
 
@@ -391,6 +392,7 @@ async function sendMessage() {
     setGenerating(false);
   }
 }
+
 
 
 function stopGeneration() {
@@ -553,9 +555,9 @@ function initializeEventListeners() {
     localStorage.setItem("gloopnext_access_mode", "email");
     $("authGate")?.classList.add("hidden");
   });
-  $("sendButton")?.addEventListener("click", sendMessage);
+  $("send")?.addEventListener("click", sendMessage);
 
-  $("messageInput")?.addEventListener("keydown", event => {
+  $("chatInput")?.addEventListener("keydown", event => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       sendMessage();
