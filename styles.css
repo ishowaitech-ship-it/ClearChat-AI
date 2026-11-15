@@ -527,3 +527,28 @@ main {
 .attachment-chip { display:flex; align-items:center; gap:8px; max-width:100%; padding:7px 10px; border-radius:12px; background:#1b2940; border:1px solid #30425f; font-size:13px; }
 .attachment-chip span { overflow-wrap:anywhere; }
 .attachment-chip button { border:0; background:transparent; color:inherit; cursor:pointer; font-size:17px; }
+
+
+/* GloopNext interaction polish */
+#messages .message.user { max-width:min(58%, 520px) !important; padding:8px 12px !important; font-size:12px; line-height:1.45; }
+#messages .message.assistant { max-width:min(94%, 900px); padding:7px 4px; }
+.sidebar-close,.sidebar-collapse { border:1px solid var(--line); background:var(--panel); color:var(--text); border-radius:9px; min-width:36px; min-height:34px; cursor:pointer; }
+.sidebar-close { display:none; position:absolute; right:12px; top:12px; font-size:22px; }
+.sidebar-collapse { display:inline-grid; place-items:center; margin-right:10px; }
+header { justify-content:flex-start; gap:10px; }
+header .right { margin-left:auto; }
+body.sidebar-collapsed .sidebar { width:76px; padding-left:10px; padding-right:10px; }
+body.sidebar-collapsed .sidebar .brand { font-size:0; padding-left:8px; }
+body.sidebar-collapsed .sidebar .brand-logo { width:34px; }
+body.sidebar-collapsed .sidebar .newchat, body.sidebar-collapsed .sidebar .label, body.sidebar-collapsed .sidebar .workspace-nav, body.sidebar-collapsed .sidebar .project-heading, body.sidebar-collapsed .sidebar .project-list, body.sidebar-collapsed .sidebar .chat-history, body.sidebar-collapsed .sidebar .usage, body.sidebar-collapsed .sidebar #settingsOpen, body.sidebar-collapsed .sidebar #ownerOpen, body.sidebar-collapsed .sidebar #cancelAdminAccess, body.sidebar-collapsed .sidebar .profile, body.sidebar-collapsed .sidebar #signOutButton { display:none !important; }
+body.sidebar-collapsed .sidebar:after { content:"G"; display:block; margin:18px auto; color:var(--accent); font-weight:800; }
+@media(max-width:760px) {
+  .sidebar-close { display:block; }
+  .sidebar-collapse { display:none; }
+  .sidebar { left:-270px !important; width:250px !important; position:fixed; }
+  .sidebar.open { left:0 !important; box-shadow:16px 0 40px #0008; }
+  body.sidebar-collapsed .sidebar { width:250px; }
+  #messages .message.user { max-width:78% !important; }
+}
+
+.sidebar { position:relative; }

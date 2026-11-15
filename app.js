@@ -287,6 +287,16 @@ function renderAll() {
   renderMessages();
   renderPlan();
   renderProjects();
+  renderProfile();
+}
+
+function renderProfile() {
+  const label = $("accountLabel");
+  const avatar = document.querySelector(".profile .avatar");
+  if (label) label.textContent = displayName || (currentUser?.email ? currentUser.email.split("@")[0] : "Guest workspace");
+  if (avatar) avatar.textContent = (displayName || "G").trim().charAt(0).toUpperCase();
+  const input = $("displayNameInput");
+  if (input && document.activeElement !== input) input.value = displayName;
 }
 
 async function api(endpoint, body = {}, signal) {
@@ -427,40 +437,36 @@ try {
 
 async function sendMessage() {
   const input = $("chatInput");
-
   if (!input || isGenerating) return;
-
   const prompt = input.value.trim();
   const files = [...pendingFiles];
-
   if (!prompt && files.length === 0) return;
 
-  if (!getActiveChat()) {
-    createChat();
+  const allowedExtensions = /\.(txt|md|csv|json|js|ts|jsx|tsx|html|css|py|java|cpp|c|h|xml|yaml|yml|log)$/i;
+  const unsupported = files.find(file => !allowedExtensions.test(file.name));
+  if (unsupported) {
+    toast(`This version can read text files only. ${unsupported.name} is not supported yet.`);
+    return;
+  }
+  if (files.some(file => file.size > 20000)) {
+    toast("Keep each text attachment under 20 KB for now.");
+    return;
   }
 
+  if (!getActiveChat()) createChat();
   input.value = "";
-
   $("welcome")?.classList.add("hidden");
-
   const fileNames = files.map(file => file.name);
   addMessage([prompt, ...fileNames.map(name => "📎 " + name)].filter(Boolean).join("\n"), "user");
-
   activeChatController = new AbortController();
-
   setGenerating(true);
 
   try {
-    const attachments = await Promise.all(files.map(async file => {
-      if (file.size > 10 * 1024 * 1024) throw new Error(file.name + " is larger than 10 MB.");
-      const data = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
-        reader.onerror = () => reject(new Error("Could not read " + file.name));
-        reader.readAsDataURL(file);
-      });
-      return { name: file.name, type: file.type || "application/octet-stream", size: file.size, data };
-    }));
+    const attachments = await Promise.all(files.map(async file => ({
+      name: file.name,
+      type: file.type || "text/plain",
+      text: await file.text()
+    })));
     await streamLocalChat(prompt, attachments);
     pendingFiles = [];
     const preview = $("attachmentPreview");
@@ -468,16 +474,12 @@ async function sendMessage() {
     const picker = $("filePicker");
     if (picker) picker.value = "";
   } catch (error) {
-    addMessage(
-      "Something went wrong: " + error.message,
-      "assistant"
-    );
+    addMessage("Something went wrong: " + error.message, "assistant");
   } finally {
     activeChatController = null;
     setGenerating(false);
   }
 }
-
 
 
 
@@ -519,19 +521,126 @@ function deleteProject(id) {
 }
 
 function changeTheme(theme) {
+  const allowed = ["dark", "black", "light", "white", "midnight"];
+  if (!allowed.includes(theme)) theme = "dark";
   document.documentElement.dataset.theme = theme;
   document.body.dataset.theme = theme;
   localStorage.setItem(STORAGE_KEYS.theme, theme);
+  if ($("themeSelect")) $("themeSelect").value = theme;
 }
 
 function changeLanguage(language) {
   localStorage.setItem(STORAGE_KEYS.language, language);
 }
 
-function upgradePlan(plan) {
-  if (!PLAN_LIMITS[plan]) return;
+function showPlans() {
+  document.querySelectorAll(".view").forEach(view => view.classList.add("hidden"));
+  $("plansView")?.classList.remove("hidden");
+  const crumb = $("crumb");
+  if (crumb) crumb.textContent = "Upgrade";
+  closeMobileSidebar();
+}
 
-  alert("Checkout is not connected yet. No payment or plan change has occurred.");
+function upgradePlan(plan) {
+  showPlans();
+  if (plan) {
+    const card = document.querySelector(`[data-plan-card="${CSS.escape(plan)}"]`);
+    card?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+  toast("Choose a plan to review. Checkout is not connected yet.");
+}
+
+function renderPlanCards() {
+  const host = $("plans");
+  if (!host) return;
+  const labels = { free: "Free", go: "GO", plus: "PLUS", pro: "PRO", ultra: "ULTRA" };
+  host.innerHTML = Object.entries(PLAN_LIMITS).map(([key, limits]) => `
+    <article class="plan-card ${key === "pro" ? "featured" : ""}" data-plan-card="${key}">
+      <h3>${labels[key]}${key === "pro" ? ' <span class="best-deal-tag">BEST DEAL</span>' : ""}</h3>
+      <div class="price">RM ${PLAN_PRICES[key]}<small> / month</small></div>
+      <p>${limits.image === Infinity ? "Unlimited usage" : `${limits.image} images · ${limits.video} videos · ${limits.browser} browser prompts · ${limits.code} code generations · ${limits.music} songs`}</p>
+      <button type="button" data-select-plan="${key}">${key === currentPlan ? "Current plan" : key === "free" ? "Free plan" : "Select plan"}</button>
+    </article>`).join("");
+}
+
+function toast(message) {
+  const node = $("toast");
+  if (!node) { console.info(message); return; }
+  node.textContent = message;
+  node.classList.add("show");
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => node.classList.remove("show"), 2600);
+}
+
+function closeMobileSidebar() {
+  $("sidebar")?.classList.remove("open");
+}
+
+function toggleSidebar() {
+  const sidebar = $("sidebar");
+  if (!sidebar) return;
+  if (window.matchMedia("(max-width: 760px)").matches) {
+    sidebar.classList.toggle("open");
+  } else {
+    document.body.classList.toggle("sidebar-collapsed");
+    localStorage.setItem("gloopnext_sidebar_collapsed", document.body.classList.contains("sidebar-collapsed") ? "1" : "0");
+  }
+}
+
+let recognition = null;
+function startVoiceInput() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    toast("Voice input is not supported in this browser. Try Chrome or Edge.");
+    return;
+  }
+  if (recognition) { try { recognition.stop(); } catch {} }
+  recognition = new SpeechRecognition();
+  recognition.lang = $("voiceLang")?.value || "en-US";
+  recognition.interimResults = true;
+  recognition.continuous = true;
+  const bar = $("voiceBar");
+  const status = $("voiceStatus");
+  const input = $("chatInput");
+  const baseText = input?.value ? input.value.trim() + " " : "";
+  let finalText = "";
+  if (bar) bar.classList.remove("hidden");
+  if (status) status.textContent = "Listening… speak now.";
+  recognition.onresult = event => {
+    let interim = "";
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const part = event.results[i][0].transcript;
+      if (event.results[i].isFinal) finalText += part + " ";
+      else interim += part;
+    }
+    if (input) input.value = baseText + finalText + interim;
+    if (status) status.textContent = interim ? interim : "Listening…";
+  };
+  recognition.onerror = event => {
+    if (status) status.textContent = event.error === "not-allowed" ? "Microphone permission was denied." : `Voice error: ${event.error}`;
+  };
+  recognition.onend = () => { if (status && !status.textContent.startsWith("Voice error")) status.textContent = "Voice input stopped."; };
+  try { recognition.start(); } catch (error) { toast("Could not start microphone: " + error.message); }
+}
+function stopVoiceInput() { if (recognition) { try { recognition.stop(); } catch {} } }
+function closeVoiceInput() { stopVoiceInput(); $("voiceBar")?.classList.add("hidden"); }
+
+async function verifyOwner() {
+  const code = $("ownerCode")?.value || "";
+  const message = $("ownerMessage");
+  if (!code.trim()) { if (message) message.textContent = "Enter your owner code first."; return; }
+  const button = $("verifyOwner");
+  if (button) button.disabled = true;
+  if (message) message.textContent = "Checking with the secure server…";
+  try {
+    const result = await api("owner/verify", { code });
+    if (message) message.textContent = result.message || "Owner code verified.";
+    toast("Owner access verified for this session.");
+  } catch (error) {
+    if (message) message.textContent = error.message;
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 
 
@@ -725,7 +834,8 @@ function initializeEventListeners() {
     if (!value) { alert("Please enter a display name."); return; }
     displayName = value;
     localStorage.setItem("gloopnext_display_name", displayName);
-    alert("Name saved on this device.");
+    renderProfile();
+    toast("Name saved on this device.");
   });
 
   $("saveSettings")?.addEventListener("click", () => {
@@ -734,12 +844,17 @@ function initializeEventListeners() {
     changeTheme(theme);
     changeLanguage(language);
     $("settingsModal")?.classList.add("hidden");
-    alert("Preferences saved on this device.");
+    toast("Preferences saved on this device.");
   });
 
-  // Mobile sidebar
-  $("mobile")?.addEventListener("click", () => {
-    $("sidebar")?.classList.toggle("open");
+  // Responsive sidebar controls
+  $("mobile")?.addEventListener("click", toggleSidebar);
+  $("sidebarCollapse")?.addEventListener("click", toggleSidebar);
+  $("sidebarClose")?.addEventListener("click", closeMobileSidebar);
+  document.addEventListener("click", event => {
+    if (window.matchMedia("(max-width: 760px)").matches && $("sidebar")?.classList.contains("open")) {
+      if (!event.target.closest("#sidebar") && !event.target.closest("#mobile")) closeMobileSidebar();
+    }
   });
 
   // Modal closing
@@ -749,9 +864,35 @@ function initializeEventListeners() {
     });
   });
 
-  // Theme and language
-  $("themeQuick")?.addEventListener("change", event => changeTheme(event.target.value));
+  // Theme, language, and homepage shortcuts
+  $("themeQuick")?.addEventListener("click", () => {
+    const current = document.body.dataset.theme || "dark";
+    changeTheme(current === "light" || current === "white" ? "dark" : "light");
+  });
   $("themeSelect")?.addEventListener("change", event => changeTheme(event.target.value));
+  document.querySelectorAll("[data-prompt]").forEach(button => {
+    button.addEventListener("click", () => {
+      const input = $("chatInput");
+      if (!input) return;
+      input.value = button.dataset.prompt || "";
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+      $("welcome")?.classList.add("hidden");
+      closeMobileSidebar();
+    });
+  });
+  document.querySelectorAll('[data-tool="plans"]').forEach(button => button.addEventListener("click", () => showPlans()));
+  $("plans")?.addEventListener("click", event => {
+    const button = event.target.closest("[data-select-plan]");
+    if (!button) return;
+    upgradePlan(button.dataset.selectPlan);
+  });
+  $("verifyOwner")?.addEventListener("click", verifyOwner);
+  $("ownerCode")?.addEventListener("keydown", event => { if (event.key === "Enter") verifyOwner(); });
+  $("mic")?.addEventListener("click", startVoiceInput);
+  $("voiceStop")?.addEventListener("click", stopVoiceInput);
+  $("voiceClose")?.addEventListener("click", closeVoiceInput);
+  $("voiceSend")?.addEventListener("click", () => { closeVoiceInput(); sendMessage(); });
 
   $("uiLanguage")?.addEventListener("change", event => {
     changeLanguage(event.target.value);
@@ -788,9 +929,12 @@ function initializeApp() {
   $("uiLanguage").value = savedLanguage;
 }
 
+  if (localStorage.getItem("gloopnext_sidebar_collapsed") === "1" && !window.matchMedia("(max-width: 760px)").matches) document.body.classList.add("sidebar-collapsed");
+  if (savedLanguage && $("uiLanguage")) $("uiLanguage").value = savedLanguage;
   initializeEventListeners();
+  renderPlanCards();
   renderAll();
-  checkUser();
+  checkUser().then(renderProfile);
 }
 
 if (document.readyState === "loading") {

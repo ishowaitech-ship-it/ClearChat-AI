@@ -53,6 +53,7 @@
 <aside class="sidebar" id="sidebar">
 
 <a class="brand" href="#"><img class="brand-logo" src="assets/gloopnext-logo.png" alt="">GloopNext</a>
+<button class="sidebar-close" id="sidebarClose" type="button" aria-label="Close sidebar">×</button>
 <button class="newchat" id="newChat">＋ New chat</button>
 <button class="newchat temporary-chat-button" id="newTemporaryChat">◌ Temporary chat</button>
 <p class="label">WORKSPACE</p>
@@ -98,7 +99,7 @@
 
 <main>
 <header>
-<button class="mobile" id="mobile">☰</button>
+<button class="mobile" id="mobile" aria-label="Open sidebar">☰</button><button class="sidebar-collapse" id="sidebarCollapse" type="button" aria-label="Collapse or expand sidebar" title="Collapse / expand sidebar">⇤</button>
 <div>Workspace <span>/</span> <b id="crumb">AI Chat</b></div>
 <div class="right">
 <button id="themeQuick" class="icon">◐</button>
@@ -153,7 +154,7 @@
 </div>
 
 <div id="attachmentPreview" class="attachment-preview hidden"></div>
-<div class="composer-input-row"><button id="attachButton" class="attach-button" type="button" title="Add files" aria-label="Add files">＋</button><input id="filePicker" type="file" multiple hidden><textarea id="chatInput" placeholder="Message GloopNext..." rows="2"></textarea></div>
+<div class="composer-input-row"><button id="attachButton" class="attach-button" type="button" title="Add files" aria-label="Add files">＋</button><input id="filePicker" type="file" multiple hidden accept=".txt,.md,.csv,.json,.js,.ts,.jsx,.tsx,.html,.css,.py,.java,.cpp,.c,.h,.xml,.yaml,.yml,.log"><textarea id="chatInput" placeholder="Message GloopNext..." rows="2"></textarea></div>
 <div class="composebottom">
 <div>
 <button id="mic">🎙 Voice</button>
