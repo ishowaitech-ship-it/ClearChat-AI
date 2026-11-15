@@ -539,6 +539,15 @@ function showPlans() {
   const crumb = $("crumb");
   if (crumb) crumb.textContent = "Upgrade";
   closeMobileSidebar();
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+
+function showChatView() {
+  document.querySelectorAll(".view").forEach(view => view.classList.add("hidden"));
+  $("chatView")?.classList.remove("hidden");
+  const crumb = $("crumb");
+  if (crumb) crumb.textContent = "AI Chat";
+  closeMobileSidebar();
 }
 
 function upgradePlan(plan) {
@@ -574,13 +583,18 @@ function toast(message) {
 
 function closeMobileSidebar() {
   $("sidebar")?.classList.remove("open");
+  $("sidebarOverlay")?.classList.remove("active");
+  $("mobile")?.setAttribute("aria-expanded", "false");
 }
 
 function toggleSidebar() {
   const sidebar = $("sidebar");
   if (!sidebar) return;
   if (window.matchMedia("(max-width: 760px)").matches) {
-    sidebar.classList.toggle("open");
+    const willOpen = !sidebar.classList.contains("open");
+    sidebar.classList.toggle("open", willOpen);
+    $("sidebarOverlay")?.classList.toggle("active", willOpen);
+    $("mobile")?.setAttribute("aria-expanded", String(willOpen));
   } else {
     document.body.classList.toggle("sidebar-collapsed");
     localStorage.setItem("gloopnext_sidebar_collapsed", document.body.classList.contains("sidebar-collapsed") ? "1" : "0");
@@ -851,6 +865,11 @@ function initializeEventListeners() {
   $("mobile")?.addEventListener("click", toggleSidebar);
   $("sidebarCollapse")?.addEventListener("click", toggleSidebar);
   $("sidebarClose")?.addEventListener("click", closeMobileSidebar);
+  $("sidebarOverlay")?.addEventListener("click", closeMobileSidebar);
+  $("plansBack")?.addEventListener("click", showChatView);
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") closeMobileSidebar();
+  });
   document.addEventListener("click", event => {
     if (window.matchMedia("(max-width: 760px)").matches && $("sidebar")?.classList.contains("open")) {
       if (!event.target.closest("#sidebar") && !event.target.closest("#mobile")) closeMobileSidebar();
